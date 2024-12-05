@@ -1,0 +1,131 @@
+/* src/styles/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import '~@fortawesome/fontawesome-free/css/all.css';
+
+@keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%); 
+    }
+  }
+  
+  .animate-marquee {
+    display: flex; 
+    animation: marquee 15s linear infinite; 
+    white-space: nowrap;
+    will-change: transform; 
+  }
+  body {
+    transition: background-color 0.3s ease, color 0.3s ease;
+    background-color: #ffffff; /* Default light mode background */
+    color: #333333; /* Default light mode text */
+  }
+  
+/* global.css */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transitions for background and text colors */
+}
+
+body.light-mode {
+  background-color: #ffffff; /* Light mode background */
+  color: #000000; /* Light mode text color */
+}
+
+body.dark-mode {
+  background-color: #1a202c; /* Dark mode background */
+  color: #ffffff; /* Dark mode text color */
+}
+
+  
+  /* Additional styles for other components can be added here */
+  
+  @keyframes bounce-fade {
+    0%, 100% {
+        opacity: 0;
+        transform: translateY(0);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-10px);
+    }
+}
+
+.animate-bounce-fade {
+    animation: bounce-fade 2s ease-in-out infinite;
+}
+
+body {
+    background-color: #f9fafb; /* Subtle background color */
+}
+
+.bubble {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background-color: rgba(0, 255, 150, 0.5);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: bubble-pop var(--bubble-speed, 1s) ease-out forwards;
+}
+
+@keyframes bubble-pop {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Add animation-duration for fast animation */
+@keyframes move {
+  0% {
+    transform: translateY(0) translateX(0);
+  }
+  50% {
+    transform: translateY(-20px) translateX(20px);
+  }
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+}
+
+@keyframes move-slow {
+  0% {
+    transform: translateY(0) translateX(0);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-15px);
+  }
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+}
+
+.animate-move {
+  animation: move 2s ease-in-out infinite; /* Speed reduced from 5s to 2s */
+}
+
+.animate-move-slow {
+  animation: move-slow 3s ease-in-out infinite; /* Speed reduced from 10s to 3s */
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease-out forwards;
+}
