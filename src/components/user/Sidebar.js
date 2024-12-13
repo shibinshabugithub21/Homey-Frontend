@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import axios from "axios";
 
 const Sidebar = () => {
-  const [activeLink, setActiveLink] = useState("My Profile");
+  const [activeLink, setActiveLink] = useState("");
   const [user, setUser] = useState({});
   const router = useRouter(); 
 
@@ -32,6 +32,9 @@ const Sidebar = () => {
     }
     else if(link === "Profile"){
       router.push('/profile')
+    }
+    else if(link === "Plans"){
+      router.push('/Premium')
     }
   };
 

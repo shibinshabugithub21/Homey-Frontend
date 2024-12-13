@@ -11,7 +11,7 @@ import Footer from '@/components/footer';
 import ReduxProvider from '../ReduxProvider';
 import ChatApp from '@/components/user/chat/userChat';
 import { AiOutlineUser } from 'react-icons/ai';
-import { IoClose } from 'react-icons/io5'; // Close icon
+import { IoClose } from 'react-icons/io5'; 
 import Draggable from 'react-draggable';
 
 const { jwtDecode } = require('jwt-decode');
@@ -35,23 +35,11 @@ const Page = () => {
       console.log("decide",decodedToken);
       
       localStorage.setItem('userId', decodedToken.id); // Match the field name in your token payload
-   
-
-      // Redirect to the user's home page
-      router.replace('/userHome');
+         router.replace('/userHome');
     } else {
       console.error('No token found in URL');
     }
   }, [router]);
-
-
-
-
-
-
-
-
-
 
   useEffect(() => {
     const checkBlockStatus = async () => {
@@ -94,7 +82,6 @@ const Page = () => {
         <TopRatedServices />
         <UserReviews />
 
-        {/* Draggable Chat Button */}
         <Draggable>
           <button
             onClick={toggleChat}
@@ -105,8 +92,6 @@ const Page = () => {
             Chat with Worker
           </button>
         </Draggable>
-
-        {/* Stylish Chat Modal */}
         {chatOpen && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div 

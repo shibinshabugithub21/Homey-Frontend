@@ -93,10 +93,12 @@ console.log('messages',messages);
     try {
       const response = await axios.post(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/createMessage`, payload);
       if (response.data.success) {
+        console.log('workerId',workerId);
+        
         setMessages((prevMessages) => [
           ...prevMessages,
           {
-            sender: "worker",
+            senderId: workerId,
             receiverId: selectedUser.userId,
             message,
             timestamp: Date.now(),
@@ -104,7 +106,7 @@ console.log('messages',messages);
         ]);
         setMessage("");
       }
-      fetchMessages()
+      // fetchMessages()
     } catch (error) {
       console.error("Error sending message:", error?.response?.data || error?.message);
     }
@@ -171,6 +173,7 @@ console.log('messages',messages);
                   }`}
                 >
                   <p>{msg.message}</p>
+           
                   <div className="text-xs text-gray-500 mt-1">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </div>

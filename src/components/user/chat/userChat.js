@@ -11,6 +11,7 @@ const ChatApp = () => {
   const socket = useRef(null);
   const [loadingUsers, setLoadingUsers] = useState(false); // Loading state for users
   let userId = localStorage.getItem("userId");
+  let [workerId, setWorkerId] = useState('')
   const [loadingMessages, setLoadingMessages] = useState(false); // Loading state for messages
 
   const fetchUsersForWorker = async () => {
@@ -35,10 +36,10 @@ const ChatApp = () => {
 
   const fetchMessages = async (userID) => {
     console.log(userID, userId);
-    
+    setWorkerId(userID)
     setLoadingMessages(true);
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/getMessages/${workerId=userID}/${userId=userId}`);
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/getMessages/${userID}/${userId}`);
       const { messages, chatId } = response.data;
 console.log('messages',messages);
 
@@ -54,7 +55,7 @@ console.log('messages',messages);
     }
   };
 
-  const handleSelectUser = (user) => {
+  const handleSelectUser = (user) => {    
     setSelectedUser(user);
     fetchMessages(user.userId);
   };
@@ -71,8 +72,8 @@ console.log('messages',messages);
     }
 
     const payload = {
-      senderId: workerId,
-      chatId: selectedUser.chatId, // Use the chatId from selectedUser
+      senderId: userId,
+      chatId: selectedUser.chatId , // Use the chatId from selectedUser
       message,
     };
 
@@ -82,8 +83,8 @@ console.log('messages',messages);
         setMessages((prevMessages) => [
           ...prevMessages,
           {
-            sender: "worker",
-            receiverId: selectedUser.userId,
+            senderId: userId,
+            receiverId: userId,
             message,
             timestamp: Date.now(),
           },

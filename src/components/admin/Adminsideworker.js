@@ -203,7 +203,6 @@ const WorkerManagementPage = () => {
                     >
                       {worker.isBlocked ? "Unblock" : "Block"}
                     </button>
-                   
                   </td>
                 </tr>
               ))}
