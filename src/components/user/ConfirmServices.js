@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '@/utils/axiosInstances'; 
@@ -8,16 +7,25 @@ const ConfirmService = () => {
     const router = useRouter();
     const [userData, setUserData] = useState({});
     const [workerData, setWorkerData] = useState({});
-    const initialAmount = 30;
-    const userId=localStorage.getItem('userId')
-    const bookingId=localStorage.getItem('bookingId')
+    const [bookingFee, setBookingFee] = useState(30); // Default fee is ₹30
+    const userId = localStorage.getItem('userId');
+    const bookingId = localStorage.getItem('bookingId');
+    const date=localStorage.getItem('selectedDate')
 
     useEffect(() => {
         const storedUser = JSON.parse(localStorage.getItem('userDetails'));
         const storedWorker = JSON.parse(localStorage.getItem('selectedWorker'));
+        const premiumStatus = JSON.parse(localStorage.getItem('premiumStatus'));
 
         if (storedUser) setUserData(storedUser);
         if (storedWorker) setWorkerData(storedWorker);
+
+        // Update the booking fee based on premium status
+        if (premiumStatus?.isPremium) {
+            setBookingFee(10); // Premium user fee is ₹10
+        } else {
+            setBookingFee(30); // Non-premium user fee is ₹30
+        }
     }, []);
 
     const loadRazorpayScript = () => {
@@ -37,43 +45,25 @@ const ConfirmService = () => {
     };
 
     const createChatAndSaveMessage = async (userId, workerId) => {
-        console.log("Sender:", userId, "Receiver:", workerId);
-        
         try {
             const response = await axiosInstance.post(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/createChat`, {
                 userId,
-                workerId
+                workerId,
             });
-            
-            console.log('Full API Response:', response.data);
-    
-            // Ensure the response structure matches what you expect
-            if (response.data && response.data.chat && response.data.chat._id) {
+
+            if (response.data?.chat?._id) {
                 const chatId = response.data.chat._id;
-                console.log('Chat ID:', chatId);
-                
-                // Save to localStorage
                 localStorage.setItem('ChatId', chatId);
-                console.log('ChatId saved to localStorage:', localStorage.getItem('ChatId'));                
-                if (response.data.success) {
-                    console.log('Chat created and message saved:', response.data.chat);
-                    return response.data.chat;
-                } else {
-                    console.error('Failed to create chat or save message:', response.data.message);
-                    return null;
-                }
+                return response.data.chat;
             } else {
-                console.error('Chat ID is missing in the response:', response.data);
+                console.error('Chat creation failed:', response.data.message);
                 return null;
             }
         } catch (error) {
-            console.error('Error creating chat and saving message:', error);
+            console.error('Error creating chat:', error);
             return null;
         }
     };
-    
-    
-// add the chat id  messgedb 
 
     const handleBookService = async () => {
         const storedUser = JSON.parse(localStorage.getItem('userDetails'));
@@ -83,61 +73,56 @@ const ConfirmService = () => {
             location: storedUser.location || '',
             phone: storedUser.phone || '',
             description: storedUser.description || '',
-            date: new Date().toISOString(),
-            amount: initialAmount,
+            date:date,
+            amount: bookingFee, // Use dynamic fee
             userId,
-            address:storedUser.address,
-            services:storedUser.service,
-            bookingId
+            address: storedUser.address,
+            services: storedUser.service,
+            bookingId,
         };
-      
-        
-    
+
         if (!bookingData.name || !bookingData.phone || !bookingData.description || !bookingData.date || !bookingData.workerId) {
             alert('Please fill in all required fields.');
             return;
         }
-        
+
         try {
             const chat = await createChatAndSaveMessage(userId, workerData._id);
+            if (!chat) {
+                alert('Failed to create chat. Please try again.');
+                return;
+            }
 
-        if (!chat) {
-            alert('Failed to create chat. Please try again.');
-            return;
-        }
-
-        const chatId = chat._id;
-            const orderResponse = await axiosInstance.post('/create-order', { amount: initialAmount });
+            const chatId = chat._id;
+            const orderResponse = await axiosInstance.post('/create-order', { amount: bookingFee }); // Razorpay expects amount in paise
             const { id, currency, amount } = orderResponse.data;
+
             await loadRazorpayScript();
-    
+
             const options = {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                amount: amount,
-                currency: currency,
+                amount,
+                currency,
                 name: 'Service Booking',
                 description: 'Booking Payment',
                 order_id: id,
                 handler: async (response) => {
                     console.log('Payment successful:', response);
                     try {
-                        const bookingSaveResponse = await axiosInstance.post('/book-service', {...bookingData,chatId:chatId});
+                        const bookingSaveResponse = await axiosInstance.post('/book-service', {
+                            ...bookingData,
+                            chatId,
+                        });
+
                         if (bookingSaveResponse.data.success) {
                             alert('Booking confirmed and saved!');
+                            localStorage.removeItem('selectedDate')
                             localStorage.removeItem('bookingId');
-                            const message = 'Booking confirmed with worker. Lets start chatting!';
-                            console.log("sender",userId);
-                            
-                            if (chat) {
-                                router.push('/userHome');
-                            } else {
-                            }
+                            router.push('/userHome');
                         } else {
-                            console.error('Failed to save booking:', bookingSaveResponse.data.message);
                             alert('Booking confirmed, but failed to save details.');
                         }
                     } catch (saveError) {
-                        console.error('Error saving booking:', saveError);
                         alert('Booking confirmed, but failed to save details.');
                     }
                 },
@@ -150,7 +135,7 @@ const ConfirmService = () => {
                     color: '#F37254',
                 },
             };
-    
+
             if (window.Razorpay) {
                 const razorpay = new window.Razorpay(options);
                 razorpay.open();
@@ -158,7 +143,6 @@ const ConfirmService = () => {
                 throw new Error('Razorpay SDK not available');
             }
         } catch (error) {
-            console.error('Error booking service:', error);
             alert('Failed to book service.');
         }
     };
@@ -194,15 +178,17 @@ const ConfirmService = () => {
                 <h3 className="text-xl font-semibold border-b pb-2 mb-4 text-purple-600">Service Details</h3>
                 <div className="grid grid-cols-2 gap-4">
                     <p><span className="font-semibold">Service Name:</span> {userData.service || 'N/A'}</p>
+                    <p><span className="font-semibold">Date Of Services:</span> {date || 'N/A'}</p>
                     <p><span className="font-semibold">Description:</span> {userData.description || 'N/A'}</p>
-                    <p><span className="font-semibold">Booking Fee:</span> ₹{initialAmount}</p> 
+                    <p><span className="font-semibold">Booking Fee:</span> ₹{bookingFee}</p>
                 </div>
             </div>
+
             <button 
                 onClick={handleBookService}
                 className="bg-blue-500 text-white font-semibold rounded-lg py-3 w-full hover:bg-blue-600 transition"
             >
-                Confirm & Pay ₹{initialAmount} for Service
+                Confirm & Pay ₹{bookingFee} for Service
             </button>
         </div>
     );

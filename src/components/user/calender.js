@@ -13,12 +13,12 @@ export default function StylishCalendar() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [showNextButton, setShowNextButton] = useState(false);
 
-  // Load the selected date from local storage when the component mounts
   useEffect(() => {
     const storedDate = localStorage.getItem('selectedDate');
     if (storedDate) {
-      setSelectedDate(new Date(storedDate)); // Parse the stored date
-      setShowNextButton(true); // Show the Next button if a date was already selected
+      const [year, month, day] = storedDate.split('-').map(Number);
+      setSelectedDate(new Date(year, month - 1, day));
+      setShowNextButton(true);
     }
   }, []);
 
@@ -30,26 +30,18 @@ export default function StylishCalendar() {
     const firstDayOfMonth = getFirstDayOfMonth(currentDate);
     const days = [];
 
-    // Fill in empty days for the first week
     for (let i = 0; i < firstDayOfMonth; i++) {
       days.push(<div key={`empty-${i}`} className="h-12"></div>);
     }
-
-    // Generate days for the current month
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
       const isToday = new Date().toDateString() === date.toDateString();
       const isSelected = selectedDate && selectedDate.toDateString() === date.toDateString();
-      
+
       days.push(
         <div
           key={i}
-          onClick={() => {
-            const localSelectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
-            setSelectedDate(localSelectedDate);
-            setShowNextButton(true); // Show the Next button when a date is selected
-            localStorage.setItem('selectedDate', localSelectedDate.toISOString()); // Save date to local storage
-          }}
+          onClick={() => handleDateClick(i)}
           className={`h-12 flex items-center justify-center rounded-lg cursor-pointer transition-colors
             ${isToday ? 'bg-blue-100 text-blue-600' : 'bg-white text-gray-700'}
             ${isSelected ? 'bg-green-500 text-white' : 'hover:bg-blue-100'}`}
@@ -62,13 +54,20 @@ export default function StylishCalendar() {
     return days;
   };
 
+  const handleDateClick = (day) => {
+    const selected = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    setSelectedDate(selected);
+    setShowNextButton(true);
+    const formattedDate = `${selected.getFullYear()}-${String(selected.getMonth() + 1).padStart(2, '0')}-${String(selected.getDate()).padStart(2, '0')}`;
+    localStorage.setItem('selectedDate', formattedDate);
+  };
+
   const changeMonth = (increment) => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + increment, 1));
   };
 
   const handleNextClick = () => {
-    // Navigate to the next page (you can replace this with your actual routing logic)
-    window.location.href = '/Booking/issuse'; // Change to your next page route
+    window.location.href = '/Booking/issuse';
   };
 
   return (

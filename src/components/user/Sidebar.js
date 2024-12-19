@@ -45,7 +45,7 @@ const Sidebar = () => {
   const handleLogout = () => {
     localStorage.removeItem('userId');
     localStorage.removeItem('token'); 
-   
+   localStorage.removeItem('premiumStatus')
     router.push('/signIn');
   };
   

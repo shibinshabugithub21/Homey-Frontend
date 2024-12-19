@@ -1,9 +1,8 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import useStore from "@/app/store/useStore";
 import { useRouter } from "next/navigation";
-import { jwtDecode } from "jwt-decode";
-import { User } from "lucide-react"; 
+import { User, CheckCircle } from "lucide-react";
 import LocationModal from "./Location";
 
 const Navbar = () => {
@@ -11,7 +10,8 @@ const Navbar = () => {
   const [userName, setUserName] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [location, setLocation] = useState(null);  // Store the selected location
+  const [location, setLocation] = useState(null);
+  const [premiumStatus, setPremiumStatus] = useState(null); // State for premium status
   const router = useRouter();
 
   useEffect(() => {
@@ -27,6 +27,12 @@ const Navbar = () => {
     if (savedLocation) {
       setLocation(savedLocation);
     }
+
+    // Retrieve the premium status from localStorage
+    const savedPremiumStatus = localStorage.getItem("premiumStatus");
+    if (savedPremiumStatus) {
+      setPremiumStatus(JSON.parse(savedPremiumStatus));
+    }
   }, []);
 
   const handleSearch = (e) => {
@@ -36,38 +42,6 @@ const Navbar = () => {
       router.push(`/search`);
       setSearchQuery("");
     }
-  };
-
-  const getUserIdFromToken = (token) => {
-    try {
-      const decoded = jwtDecode(token);
-      return decoded ? decoded.userId : null;
-    } catch (error) {
-      console.error("Failed to decode token:", error);
-      return null;
-    }
-  };
-
-  const token = localStorage.getItem("adminToken");
-
-  useEffect(() => {
-    const userId = getUserIdFromToken(token);
-    console.log("userid", userId);
-  }, [token]);
-
-  // Function to handle location selection and update localStorage
-  const handleLocationSelect = (newLocation) => {
-    // Remove the existing location from localStorage if present
-    localStorage.removeItem("selectedLocation");
-
-    // Save the new location to localStorage
-    localStorage.setItem("selectedLocation", newLocation);
-
-    // Update the location state
-    setLocation(newLocation);
-
-    // Close the modal after selection
-    setModalOpen(false);
   };
 
   return (
@@ -115,7 +89,7 @@ const Navbar = () => {
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center">
-            <a href="/" className="mx-4 text-gray-700 hover:text-teal-600 font-semibold no-underline">
+            <a href="/userHome" className="mx-4 text-gray-700 hover:text-teal-600 font-semibold no-underline">
               Home
             </a>
             <a href="/servics" className="mx-4 text-gray-700 hover:text-teal-600 font-semibold no-underline">
@@ -155,8 +129,12 @@ const Navbar = () => {
           <div className="flex items-center">
             {userName ? (
               <a href="/profile" className="flex items-center text-teal-600 hover:text-teal-700 font-semibold no-underline mr-4">
-                <User className="mr-2 text-gray-700" /> {/* Profile icon */}
+                <User className="mr-2 text-gray-700" /> 
                 <span>{userName}</span> 
+                {/* Show verified icon if the user is premium */}
+                {premiumStatus && premiumStatus.isPremium && (
+                  <CheckCircle className="ml-2 text-teal-600" size={20} />
+                )}
               </a>
             ) : (
               <a  

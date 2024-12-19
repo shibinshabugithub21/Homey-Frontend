@@ -18,13 +18,23 @@ const UserDetailsAndIssues = () => {
   const [serviceError, setServiceError] = useState(null);
   const [descriptionError, setDescriptionError] = useState(null);
 
+  
+
   useEffect(() => {
     const storedService = localStorage.getItem("selectedService");
     const location = localStorage.getItem("selectedLocation");
+    const selectedUser=localStorage.getItem("userDetails")
+    
     if (storedService) {
       setService(storedService);
     }
     if(location) setLocation(location)
+    if (selectedUser) {
+      const userDetails = JSON.parse(selectedUser); 
+      setName(userDetails.name || "");
+      setPhone(userDetails.phone || "");
+      setAddress(userDetails.address || "");
+    }
   }, []);
 
   const validateFields = () => {
@@ -101,15 +111,17 @@ const UserDetailsAndIssues = () => {
       });
 
       if (response.status === 201) {
+        console.log('date',date);
+        
         const bookingId = response.data.booking._id;
         localStorage.setItem("bookingId", bookingId);
         const workersResponse = await axios.get(
-          `${process.env.NEXT_PUBLIC_Backend_Port}/availableWorker?location=${location}&services=${service}`
+          `${process.env.NEXT_PUBLIC_Backend_Port}/availableWorker?location=${location}&services=${service}&date=${date}`
         );
         const workers = workersResponse.data;
 
         if (workers.length > 0) {
-          window.location.href = `/Booking/workerList?bookingId=${bookingId}&location=${location}&services=${service}`;
+          window.location.href = `/Booking/workerList?bookingId=${bookingId}&location=${location}&services=${service}&date=${date}`;
         } else {
           toast.error("No workers available for the selected location and service.");
         }

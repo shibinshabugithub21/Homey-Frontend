@@ -2,31 +2,41 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { useRouter,useSearchParams } from "next/navigation";
 
 const AvailableWorkers = () => {
   const [workers, setWorkers] = useState([]);
   const [error, setError] = useState(null);
   const [loading,setLoading]=useState(true)
+  const searchParams=useSearchParams()
+  const location = searchParams.get("location"); // Get the location from the URL
+  const service = searchParams.get("services"); // Get the service from the URL
+  const date = searchParams.get("date");
   const route = useRouter();
 
   useEffect(() => {
     const fetchAvailableWorkers = async () => {
-      const storedLocation = localStorage.getItem("userLocation");
-      try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_Backend_Port}/availableWorker?location=${location}`);
-        if (response.data.length === 0) {
-          console.log("No workers found for this location.");
-        } else {
-          setWorkers(response.data);
+      if (location && service && date) {
+        setLoading(true);
+        try {
+          const response = await axios.get(
+            `${process.env.NEXT_PUBLIC_Backend_Port}/availableWorker?location=${location}&services=${service}&date=${date}`
+          );
+          setWorkers(response.data); 
+          console.log("ewrwerew",response.data);
+          
+          setLoading(false);
+        } catch (error) {
+          console.error("Error fetching available workers:", error);
+          setError("No workers available.");
+          setLoading(false);
         }
-      } catch (error) {
-        console.error("Error fetching available workers:", error);
       }
     };
 
     fetchAvailableWorkers();
-  }, []);
+  }, [location, service, date]); // Re-fetch when location, service, or date changes
+
 
   const handleWorkerSelection = (worker) => {
     localStorage.setItem("selectedWorker", JSON.stringify(worker));
@@ -59,11 +69,11 @@ const AvailableWorkers = () => {
           ))}
         </div>
       ) : (
-        <p>loading</p>
-        // <div className="absolute inset-0 flex items-center justify-center z-10 bg-transparent">
-        //       <div className="w-16 h-16 border-4 border-t-transparent border-yellow-500 rounded-full animate-spin"></div>
-        //        <p className="ml-4 text-lg font-semibold text-gray-700">Loading available workers...</p>
-        //      </div>
+        // <p>loading</p>
+        <div className="absolute inset-0 flex items-center justify-center z-10 bg-transparent">
+              <div className="w-16 h-16 border-4 border-t-transparent border-yellow-500 rounded-full animate-spin"></div>
+               <p className="ml-4 text-lg font-semibold text-gray-700">Loading available workers...</p>
+             </div>
       )}
     </div>
   );

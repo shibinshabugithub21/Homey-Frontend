@@ -11,24 +11,26 @@ const AdminSideServicePage = () => {
     name: "",
     category: "",
     icon: null,
+    offer: "",
   });
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [editingService, setEditingService] = useState({
     name: "",
     category: "",
     icon: null,
+    offer: "",
   });
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_Backend_Port}/admin/services`);
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_Backend_Port}/admin/services`
+        );
         if (response.status === 200) {
           setServices(response.data);
         } else {
@@ -36,23 +38,33 @@ const AdminSideServicePage = () => {
         }
       } catch (error) {
         console.error("Error fetching services:", error);
-        alert("Error fetching services: " + (error.response ? error.response.data.message : error.message));
+        alert(
+          "Error fetching services: " +
+            (error.response ? error.response.data.message : error.message)
+        );
       }
     };
 
     const fetchCategories = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_Backend_Port}/admin/categories`);
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_Backend_Port}/admin/categories`
+        );
         if (response.status === 200) {
-          const unblockedCategories = response.data.filter((category) => !category.isBlocked);
+          const unblockedCategories = response.data.filter(
+            (category) => !category.isBlocked
+          );
           setCategories(unblockedCategories);
         } else {
           alert("Error fetching categories: " + response.data.message);
         }
       } catch (error) {
         console.error("Error fetching categories:", error);
-        alert("Error fetching categories: " + (error.response ? error.response.data.message : error.message));
+        alert(
+          "Error fetching categories: " +
+            (error.response ? error.response.data.message : error.message)
+        );
       } finally {
         setLoading(false);
       }
@@ -68,62 +80,67 @@ const AdminSideServicePage = () => {
   };
 
   const handleAddService = async () => {
-    const formData = new FormData();  // Create a new FormData instance
-  
-    // Append form data including file and other fields
+    const formData = new FormData();
     formData.append("name", newService.name);
     formData.append("category", newService.category);
-    formData.append("icon", newService.icon);
-  
-    console.log("Form data:", formData);  // Debugging - to check the structure of the formData
-  
+    formData.append("offer", newService.offer);
+    if (newService.icon) {
+      formData.append("icon", newService.icon);
+    }
+
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_Backend_Port}/admin/addservices`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-  
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_Backend_Port}/admin/addservices`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
       if (response.data.success) {
         toast.success("Service added successfully!");
-        fetchServices();  // Re-fetch services to update the list
-        setNewService({ name: "", category: "", icon: null });  // Reset form
+        setServices([...services, response.data.data]);
+        setNewService({ name: "", category: "", icon: null, offer: "" });
       }
     } catch (error) {
-      console.error("Upload error:", error);
-      toast.error(error.response?.data?.message || "Upload failed");
+      console.error("Error adding service:", error);
+      toast.error(error.response?.data?.message || "Failed to add service");
     }
   };
-  
+
   const handleEditService = (service) => {
     setEditingServiceId(service._id);
     setEditingService({
       name: service.name,
       category: service.category,
       icon: service.icon || null,
+      offer: service.offer || "",
     });
   };
 
   const handleSaveService = async () => {
     if (!editingService.name.trim() || !editingService.category) {
-      alert("Please fill in all fields.");
+      toast.error("Please fill in all required fields.");
       return;
     }
   
     const formData = new FormData();
     formData.append("name", editingService.name);
     formData.append("category", editingService.category);
+    formData.append("offer", editingService.offer);
+    
     if (editingService.icon instanceof File) {
       formData.append("icon", editingService.icon);
     }
-  
+    for (let [key, value] of formData.entries()) {
+      console.log('hjh',key, value);
+    }
     try {
-      const response = await axios.put(
+      const response = await axios.post(
         `${process.env.NEXT_PUBLIC_Backend_Port}/admin/editservice/${editingServiceId}`,
         formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
       );
   
       if (response.data.success) {
@@ -133,78 +150,76 @@ const AdminSideServicePage = () => {
           )
         );
         setEditingServiceId(null);
-        setEditingService({ name: "", category: "", icon: null });
-        toast.success(response.data.message);
+        setEditingService({ name: "", category: "", icon: null, offer: "" });
+        toast.success("Service updated successfully!");
       } else {
         toast.error("Error updating service: " + response.data.message);
       }
     } catch (error) {
       console.error("Error updating service:", error);
-      alert(
-        "Error updating service: " +
-          (error.response ? error.response.data.message : error.message)
-      );
+      toast.error(error.response?.data?.message || "Error updating service.");
     }
   };
   
 
-  const handleDeleteService = async (id) => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
+  const handleDeleteService = async (serviceId) => {
+    try {
+      const result = await Swal.fire({
+        title: "Are you sure?",
+        text: "This action cannot be undone.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Yes, delete it!",
+      });
+  
       if (result.isConfirmed) {
-        try {
-          const response = await axios.delete(`${process.env.NEXT_PUBLIC_Backend_Port}/admin/deleteservices/${id}`);
-
-          if (response.data.message) {
-            setServices(services.filter((service) => service._id !== id));
-            toast.success(response.data.message);
-          } else {
-            toast.error("Error deleting service: " + response.data.message);
-          }
-        } catch (error) {
-          console.error("Error deleting service:", error);
-          toast.error("Error deleting service: " + (error.response ? error.response.data.message : error.message));
+        const response = await axios.delete(
+          `${process.env.NEXT_PUBLIC_Backend_Port}/admin/deleteservice/${serviceId}`
+        );
+  
+        if (response.data.success) {
+          setServices((prev) => prev.filter((svc) => svc._id !== serviceId));
+          toast.success("Service deleted successfully!");
+        } else {
+          toast.error("Failed to delete service.");
         }
       }
-    });
+    } catch (error) {
+      console.error("Error deleting service:", error);
+      toast.error("Error deleting service: " + error.message);
+    }
   };
+  
 
-  const handleBlockUnblock = async (id, isBlocked) => {
-    const action = isBlocked ? "Unblock" : "Block";
-
-    Swal.fire({
-      title: `Are you sure you want to ${action.toLowerCase()} this service?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: `Yes, ${action.toLowerCase()} it!`,
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const response = await axios.post(`${process.env.NEXT_PUBLIC_Backend_Port}/admin/blockServices/${id}`);
-          if (response.data.success) {
-            setCategories((prevServices) => prevServices.map((ser) => (ser._id === id ? response.data.data : ser)));
-            toast.success(`Service ${action.toLowerCase()}ed successfully!`);
-          } else {
-            toast.error(`Error ${action.toLowerCase()}ing service: ${response.data.message}`);
-          }
-        } catch (error) {
-          console.error("Error updating service status:", error);
-          toast.error(
-            `Error ${action.toLowerCase()}ing service: ${error.response ? error.response.data.message : error.message}`
-          );
-        }
+  const handleBlockService = async (serviceId, isBlocked) => {
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_Backend_Port}/admin/blockServices/${serviceId}`,
+        { isBlocked: !isBlocked }
+      );
+  
+      if (response.data.success) {
+        setServices((prev) =>
+          prev.map((svc) =>
+            svc._id === serviceId
+              ? { ...svc, isBlocked: !svc.isBlocked }
+              : svc
+          )
+        );
+        toast.success(
+          `Service ${isBlocked ? "unblocked" : "blocked"} successfully!`
+        );
+      } else {
+        toast.error("Failed to update service status.");
       }
-    });
+    } catch (error) {
+      console.error("Error blocking/unblocking service:", error);
+      toast.error("Error updating service status: " + error.message);
+    }
   };
+  
 
   const indexOfLastService = currentPage * itemsPerPage;
   const indexOfFirstService = indexOfLastService - itemsPerPage;
@@ -221,29 +236,43 @@ const AdminSideServicePage = () => {
           <div className="flex gap-4">
             <input
               type="text"
-              onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+              onChange={(e) =>
+                setNewService({ ...newService, name: e.target.value })
+              }
               placeholder="Service Name"
               className="p-2 bg-gray-200 text-black rounded"
             />
-            {loading ? (
-              <p>Loading categories...</p>
-            ) : (
-              <select
-                value={newService.category}
-                onChange={(e) => setNewService({ ...newService, category: e.target.value })}
-                className="p-2 bg-gray-200 text-black rounded"
-              >
-                <option value="">Select Category</option>
-                {categories.map((category) => (
-                  <option key={category._id} value={category._id}>
-                    {category.Category}
-                  </option>
-                ))}
-              </select>
-            )}
-            <input type="file" onChange={handleIconChange} className="p-2 bg-gray-200 text-black rounded" />
-            {message && <div className="text-red-700">{message}</div>}
-            <button className="px-4 py-2 bg-green-600 text-white rounded hover:opacity-75" onClick={handleAddService}>
+            <input
+              type="text"
+              onChange={(e) =>
+                setNewService({ ...newService, offer: e.target.value })
+              }
+              placeholder="Offer"
+              className="p-2 bg-gray-200 text-black rounded"
+            />
+            <select
+              value={newService.category}
+              onChange={(e) =>
+                setNewService({ ...newService, category: e.target.value })
+              }
+              className="p-2 bg-gray-200 text-black rounded"
+            >
+              <option value="">Select Category</option>
+              {categories.map((category) => (
+                <option key={category._id} value={category._id}>
+                  {category.Category}
+                </option>
+              ))}
+            </select>
+            <input
+              type="file"
+              onChange={handleIconChange}
+              className="p-2 bg-gray-200 text-black rounded"
+            />
+            <button
+              className="px-4 py-2 bg-green-600 text-white rounded hover:opacity-75"
+              onClick={handleAddService}
+            >
               Add Service
             </button>
           </div>
@@ -257,6 +286,7 @@ const AdminSideServicePage = () => {
                 <th className="p-4 border-b">Si.No</th>
                 <th className="p-4 border-b">Service Name</th>
                 <th className="p-4 border-b">Category</th>
+                <th className="p-4 border-b">Offer</th>
                 <th className="p-4 border-b">Icon</th>
                 <th className="p-4 border-b">Action</th>
               </tr>
@@ -270,7 +300,12 @@ const AdminSideServicePage = () => {
                       <input
                         type="text"
                         value={editingService.name}
-                        onChange={(e) => setEditingService({ ...editingService, name: e.target.value })}
+                        onChange={(e) =>
+                          setEditingService({
+                            ...editingService,
+                            name: e.target.value,
+                          })
+                        }
                         className="p-2 bg-gray-200 text-black rounded"
                       />
                     ) : (
@@ -281,7 +316,12 @@ const AdminSideServicePage = () => {
                     {editingServiceId === service._id ? (
                       <select
                         value={editingService.category}
-                        onChange={(e) => setEditingService({ ...editingService, category: e.target.value })}
+                        onChange={(e) =>
+                          setEditingService({
+                            ...editingService,
+                            category: e.target.value,
+                          })
+                        }
                         className="p-2 bg-gray-200 text-black rounded"
                       >
                         {categories.map((category) => (
@@ -291,11 +331,33 @@ const AdminSideServicePage = () => {
                         ))}
                       </select>
                     ) : (
-                      categories.find((category) => category._id === service.category)?.Category || "Unknown"
+                      categories.find((cat) => cat._id === service.category)
+                        ?.Category || "Unknown"
                     )}
                   </td>
                   <td className="p-4 border-b">
-                    <img src={service.icon} alt={service.name} className="h-12 w-12 object-cover" />
+                    {editingServiceId === service._id ? (
+                      <input
+                        type="text"
+                        value={editingService.offer}
+                        onChange={(e) =>
+                          setEditingService({
+                            ...editingService,
+                            offer: e.target.value,
+                          })
+                        }
+                        className="p-2 bg-gray-200 text-black rounded"
+                      />
+                    ) : (
+                      service.offer || "N/A"
+                    )}
+                  </td>
+                  <td className="p-4 border-b">
+                    <img
+                      src={service.icon}
+                      alt={service.name}
+                      className="h-12 w-12 object-cover"
+                    />
                   </td>
                   <td className="p-4 border-b">
                     {editingServiceId === service._id ? (
@@ -320,10 +382,12 @@ const AdminSideServicePage = () => {
                       Delete
                     </button>
                     <button
-                      onClick={() => handleBlockUnblock(service._id)}
-                      className={`ml-2 px-4 py-2 ${
-                        service.isBlocked ? "bg-red-500" : "bg-green-500"
-                      } text-white rounded hover:opacity-75`}
+                      onClick={() =>
+                        handleBlockService(service._id, service.isBlocked)
+                      }
+                      className={`ml-2 px-4 py-2 text-white rounded hover:opacity-75 ${
+                        service.isBlocked ? "bg-yellow-600" : "bg-green-600"
+                      }`}
                     >
                       {service.isBlocked ? "Unblock" : "Block"}
                     </button>

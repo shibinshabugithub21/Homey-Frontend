@@ -61,7 +61,7 @@ const AdminSideNavbar = () => {
             { name: 'Home', link: '/admin/adminHomePage' },
             { name: 'User', link: '/admin/adminUserPage' },
             { name: 'Employee', link: '/admin/adminworker' },
-            { name: 'Subscription', link: '/admin/adminPremium' },
+            { name: 'Subscription', link: '/admin/adminPremiumMagmant' },
             { name: 'Category', link: '/admin/adminCategory' },
             { name: 'Services', link: '/admin/adminServices' },
             {name:'Location',link:'/admin/adminLocation'},

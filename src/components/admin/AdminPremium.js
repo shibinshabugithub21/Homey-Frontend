@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import axiosInstance from "@/utils/axiosInstances";
+import { fetchSubscriptions, addSubscription, editSubscription, deleteSubscription, blockSubscription } from "@/config/subscriptionService";
 import Pagination from "./pagination";
 import Swal from "sweetalert2";
 import { toast, ToastContainer } from "react-toastify";
@@ -24,7 +24,7 @@ const AdminPlanManagementPage = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        const response = await axiosInstance.get('/admin/getPlans');
+        const response = await fetchSubscriptions();
         if (response.status === 200) {
           setPlans(response.data.data);
         } else {
@@ -46,7 +46,7 @@ const AdminPlanManagementPage = () => {
     }
 
     try {
-      const response = await axiosInstance.post('/admin/addPlans', newPlan);
+      const response = await addSubscription(newPlan);
       if (response.data.message) {
         toast.success("Plan added successfully!");
         setPlans([...plans, response.data.data]);
@@ -70,7 +70,7 @@ const AdminPlanManagementPage = () => {
     }
 
     try {
-      const response = await axiosInstance.put(`/admin/editPlans/${editingPlanId}`, editingPlan);
+      const response = await editSubscription(editingPlanId, editingPlan);
       if (response.data.message) {
         setPlans((prev) =>
           prev.map((plan) => (plan._id === editingPlanId ? response.data.data : plan))
@@ -97,7 +97,7 @@ const AdminPlanManagementPage = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const response = await axiosInstance.delete(`/admin/delete/${id}`);
+          const response = await deleteSubscription(id);
           if (response.status === 200) {
             setPlans(plans.filter((plan) => plan._id !== id));
             toast.success("Plan deleted successfully!");
@@ -125,7 +125,7 @@ const AdminPlanManagementPage = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const response = await axiosInstance.post(`/admin/blockPlans/${id}`);
+          const response = await blockSubscription(id);
           if (response.data.message) {
             setPlans((prevPlans) =>
               prevPlans.map((plan) =>
@@ -178,23 +178,22 @@ const AdminPlanManagementPage = () => {
         <div className="mb-8">
           <h2 className="text-2xl mb-4">Add New Plan</h2>
           <div className="flex flex-col gap-2">
-          <div className="flex gap-2 mb-4">  {/* Flexbox container with gap between inputs */}
-  <input
-    type="text"
-    value={newPlan.type}
-    onChange={(e) => setNewPlan({ ...newPlan, type: e.target.value })}
-    placeholder="Plan Type"
-    className="p-3 bg-gray-200 text-black rounded w-1/2"
-  />
-  <input
-    type="text"
-    value={newPlan.amount}
-    onChange={(e) => setNewPlan({ ...newPlan, amount: e.target.value })}
-    placeholder="Amount"
-    className="p-3 bg-gray-200 text-black rounded w-1/2"
-  />
-</div>
-
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={newPlan.type}
+                onChange={(e) => setNewPlan({ ...newPlan, type: e.target.value })}
+                placeholder="Plan Type"
+                className="p-3 bg-gray-200 text-black rounded w-1/2"
+              />
+              <input
+                type="text"
+                value={newPlan.amount}
+                onChange={(e) => setNewPlan({ ...newPlan, amount: e.target.value })}
+                placeholder="Amount"
+                className="p-3 bg-gray-200 text-black rounded w-1/2"
+              />
+            </div>
             <div>
               {newPlan.services.map((service, index) => (
                 <div key={index} className="flex gap-2 mb-2">
@@ -227,7 +226,6 @@ const AdminPlanManagementPage = () => {
                 Add Service
               </button>
             </div>
-           
             <button
               className="px-4 py-2 bg-green-600 text-white rounded hover:opacity-75"
               onClick={handleAddPlan}
