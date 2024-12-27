@@ -12,6 +12,7 @@ const Navbar = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [location, setLocation] = useState(null);
   const [premiumStatus, setPremiumStatus] = useState(null); // State for premium status
+  const [userCoords, setUserCoords] = useState(null); // User's geolocation coordinates
   const router = useRouter();
 
   useEffect(() => {
@@ -33,7 +34,59 @@ const Navbar = () => {
     if (savedPremiumStatus) {
       setPremiumStatus(JSON.parse(savedPremiumStatus));
     }
+
+    // Get the user's current geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserCoords({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
+    } else {
+      console.error("Geolocation is not supported by this browser.");
+    }
   }, []);
+
+  const handleLocationSelect = (selectedLocation) => {
+    setLocation(selectedLocation);
+    localStorage.setItem("selectedLocation", selectedLocation);
+    setModalOpen(false);
+  };
+
+  const filterNearbyServices = (services) => {
+    if (!userCoords) return services;
+
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371; // Earth's radius in km
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // Distance in km
+    };
+
+    const maxDistance = 50; // Maximum distance in kilometers
+    return services.filter((service) => {
+      const distance = calculateDistance(
+        userCoords.latitude,
+        userCoords.longitude,
+        service.latitude,
+        service.longitude
+      );
+      return distance <= maxDistance;
+    });
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -70,20 +123,7 @@ const Navbar = () => {
               className="bg-teal-600 text-white rounded-r-lg py-2 px-4 flex items-center"
               aria-label="Search"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6h4m-2 2v12M4 10h4m-2 2v6M16 10h4m-2 2v6"
-                />
-              </svg>
+              Search
             </button>
           </form>
 
@@ -95,7 +135,6 @@ const Navbar = () => {
             <a href="/servics" className="mx-4 text-gray-700 hover:text-teal-600 font-semibold no-underline">
               Services
             </a>
-
             <a
               href="/Booking/BookingHistory"
               className="mx-4 text-gray-700 hover:text-teal-600 font-semibold no-underline"
@@ -112,12 +151,6 @@ const Navbar = () => {
               {location && <span>{location}</span>}
             </a>
 
-            <a
-              href="/language"
-              className="flex items-center mx-4 text-gray-700 hover:text-teal-600 font-semibold no-underline"
-            >
-              <i className="fas fa-language mr-1"></i>
-            </a>
             <div
               className="text-gray-700 hover:text-teal-600 cursor-pointer font-semibold mx-4"
               onClick={toggleDarkMode}
@@ -131,7 +164,6 @@ const Navbar = () => {
               <a href="/profile" className="flex items-center text-teal-600 hover:text-teal-700 font-semibold no-underline mr-4">
                 <User className="mr-2 text-gray-700" /> 
                 <span>{userName}</span> 
-                {/* Show verified icon if the user is premium */}
                 {premiumStatus && premiumStatus.isPremium && (
                   <CheckCircle className="ml-2 text-teal-600" size={20} />
                 )}
@@ -148,7 +180,7 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Location Modal with onLocationSelect function passed */}
+      {/* Location Modal */}
       {modalOpen && <LocationModal closeModal={() => setModalOpen(false)} onLocationSelect={handleLocationSelect} />}
     </nav>
   );

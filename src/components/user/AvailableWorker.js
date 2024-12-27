@@ -1,4 +1,3 @@
-// components/AvailableWorkers.js
 "use client";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
@@ -9,8 +8,8 @@ const AvailableWorkers = () => {
   const [error, setError] = useState(null);
   const [loading,setLoading]=useState(true)
   const searchParams=useSearchParams()
-  const location = searchParams.get("location"); // Get the location from the URL
-  const service = searchParams.get("services"); // Get the service from the URL
+  const location = searchParams.get("location"); 
+  const service = searchParams.get("services"); 
   const date = searchParams.get("date");
   const route = useRouter();
 

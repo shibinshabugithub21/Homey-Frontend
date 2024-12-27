@@ -13,7 +13,7 @@ import ChatApp from '@/components/user/chat/userChat';
 import { AiOutlineUser } from 'react-icons/ai';
 import { IoClose } from 'react-icons/io5'; 
 import Draggable from 'react-draggable';
-
+import SubscriptionPlansModal from '@/components/user/PremiumAd';
 const { jwtDecode } = require('jwt-decode');
 
 const Page = () => {
@@ -76,6 +76,7 @@ const Page = () => {
     <div className="relative">
       <ReduxProvider>
         <Navbar />
+        <SubscriptionPlansModal/>
         <IndividualIntervalsExample /> 
         <OfferText />
         <Services />
@@ -106,7 +107,6 @@ const Page = () => {
                 </button>
               </div>
 
-              {/* Chat Content */}
               <div className="p-4 h-full overflow-y-auto">
                 <ChatApp />
               </div>
