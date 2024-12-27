@@ -24,6 +24,8 @@ const UserDetailsAndIssues = () => {
     const storedService = localStorage.getItem("selectedService");
     const location = localStorage.getItem("selectedLocation");
     const selectedUser=localStorage.getItem("userDetails")
+    console.log("location",location);
+    
     
     if (storedService) {
       setService(storedService);

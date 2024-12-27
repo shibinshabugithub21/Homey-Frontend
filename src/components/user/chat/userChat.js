@@ -1,30 +1,54 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import io from "socket.io-client";
-import axios from "axios";
+import { MessageCircle, Send, Clock, UserCircle } from "lucide-react";
+import io from "socket.io-client"; // Import socket.io-client
 
 const ChatApp = () => {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-  const socket = useRef(null);
-  const [loadingUsers, setLoadingUsers] = useState(false); // Loading state for users
+  const socket = useRef(null); // Create a socket reference
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const messagesEndRef = useRef(null);
   let userId = localStorage.getItem("userId");
-  let [workerId, setWorkerId] = useState('')
-  const [loadingMessages, setLoadingMessages] = useState(false); // Loading state for messages
+  let [workerId, setWorkerId] = useState('');
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    socket.current = io(process.env.NEXT_PUBLIC_Backend_Port);
+
+    socket.current.on('message', (messageData) => {
+      if (messageData.chatId === selectedUser?.chatId) {
+        setMessages((prevMessages) => [...prevMessages, messageData]);
+      }
+    });
+
+    return () => {
+      if (socket.current) {
+        socket.current.disconnect();
+      }
+    };
+  }, [selectedUser]);
 
   const fetchUsersForWorker = async () => {
     setLoadingUsers(true);
-
     try {
-      const response = await axios.get(
+      const response = await fetch(
         `${process.env.NEXT_PUBLIC_Backend_Port}/getWorkerDetail/${userId}`
       );
-
-      setUsers(response.data.users); // Update users list
+      const data = await response.json();
+      setUsers(data.users);
     } catch (error) {
-      console.error("Error fetching users for worker:", error);
+      console.error("Error fetching users:", error);
     } finally {
       setLoadingUsers(false);
     }
@@ -35,19 +59,16 @@ const ChatApp = () => {
   }, [userId]);
 
   const fetchMessages = async (userID) => {
-    console.log(userID, userId);
-    setWorkerId(userID)
     setLoadingMessages(true);
+    setWorkerId(userID);
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/getMessages/${userID}/${userId}`);
-      const { messages, chatId } = response.data;
-console.log('messages',messages);
-
-      setMessages(messages); // Update messages state
-      setSelectedUser((prev) => ({
-        ...prev,
-        chatId, // Set chatId from response
-      }));
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_Backend_Port}/worker/getMessages/${userID}/${userId}`
+      );
+      const data = await response.json();
+      const { messages, chatId } = data;
+      setMessages(messages);
+      setSelectedUser((prev) => ({ ...prev, chatId }));
     } catch (error) {
       console.error("Error fetching messages:", error);
     } finally {
@@ -55,33 +76,38 @@ console.log('messages',messages);
     }
   };
 
-  const handleSelectUser = (user) => {    
+  const handleSelectUser = (user) => {
     setSelectedUser(user);
     fetchMessages(user.userId);
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim()) {
-      console.warn("Message is empty, cannot send.");
-      return;
-    }
-
-    if (!selectedUser || !selectedUser.chatId) {
-      console.warn("No user selected or chatId missing.");
-      return;
-    }
+    if (!message.trim() || !selectedUser?.chatId) return;
 
     const payload = {
       senderId: userId,
-      chatId: selectedUser.chatId , // Use the chatId from selectedUser
+      chatId: selectedUser.chatId,
       message,
     };
 
     try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/createMessage`, payload);
-      if (response.data.success) {
-        setMessages((prevMessages) => [
-          ...prevMessages,
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_Backend_Port}/worker/createMessage`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        // Send the message via socket
+        socket.current.emit('sendMessage', payload);
+        setMessages((prev) => [
+          ...prev,
           {
             senderId: userId,
             receiverId: userId,
@@ -91,94 +117,130 @@ console.log('messages',messages);
         ]);
         setMessage("");
       }
-      fetchMessages()
+      fetchMessages(selectedUser.userId);
     } catch (error) {
-      console.error("Error sending message:", error?.response?.data || error?.message);
+      console.error("Error sending message:", error);
     }
   };
+
+
   return (
-    <div className="flex max-w-full mx-auto shadow-lg rounded-lg h-full">
-      {/* Left side user list */}
-      <div className="w-64 bg-gray-100 p-4 space-y-6 border-r border-gray-300">
-        <h2 className="text-xl font-semibold text-gray-800">Users</h2>
-        {loadingUsers ? (
-          <p className="text-gray-400">Loading users...</p>
-        ) : (
-          <ul className="space-y-3">
-            {users.map((user) => (
-              <li
-                key={user.userId}
-                className={`p-2 bg-gray-100 rounded-md cursor-pointer text-sm font-medium hover:bg-indigo-100 hover:shadow transition-all duration-200 ${
-                  selectedUser?.userId === user.userId
-                    ? "bg-indigo-200"
-                    : ""
-                }`}
-                onClick={() => handleSelectUser(user)}
-              >
-                {user.name}
-              </li>
-            ))}
-          </ul>
-        )}
+    <div className="flex h-screen bg-gray-100">
+      {/* Users Sidebar */}
+      <div className="w-1/4 bg-white border-r border-gray-200 shadow-lg">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center space-x-2">
+            <MessageCircle className="w-6 h-6 text-indigo-600" />
+            <h2 className="text-xl font-semibold text-gray-800">Chats</h2>
+          </div>
+        </div>
+        
+        <div className="overflow-y-auto h-full">
+          {loadingUsers ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          ) : (
+            <div className="space-y-2 p-3">
+              {users.map((user) => (
+                <div
+                  key={user.userId}
+                  onClick={() => handleSelectUser(user)}
+                  className={`flex items-center p-3 rounded-lg cursor-pointer transform transition-all duration-200 hover:scale-102 ${
+                    selectedUser?.userId === user.userId
+                      ? "bg-indigo-50 border-l-4 border-indigo-600"
+                      : "hover:bg-gray-50"
+                  }`}
+                >
+                  <UserCircle className="w-10 h-10 text-gray-400" />
+                  <div className="ml-3">
+                    <p className="font-medium text-gray-900">{user.name}</p>
+                    <p className="text-sm text-gray-500">Click to chat</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Chat area */}
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col p-6 bg-white shadow-xl">
-        <div className="text-2xl font-semibold text-gray-800 mb-4">
-          {selectedUser ? selectedUser.name : "Select a User"}
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col bg-white">
+        {/* Chat Header */}
+        <div className="p-4 border-b border-gray-200 bg-white shadow-sm">
+          {selectedUser ? (
+            <div className="flex items-center">
+              <UserCircle className="w-8 h-8 text-gray-400" />
+              <div className="ml-3">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  {selectedUser.name}
+                </h2>
+                <p className="text-sm text-gray-500">Online</p>
+              </div>
+            </div>
+          ) : (
+            <h2 className="text-lg font-semibold text-gray-800">
+              Select a conversation
+            </h2>
+          )}
         </div>
 
         {/* Messages Area */}
-        <div className="flex-grow overflow-y-auto space-y-4 mb-4">
+        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
           {loadingMessages ? (
-            <p className="text-gray-400">Loading messages...</p>
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
           ) : (
-
-
-            messages.map((msg, index) => (
-              <div
-                key={index}
-                className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
-              >
+            <div className="space-y-4">
+              {messages.map((msg, index) => (
                 <div
-                  className={`max-w-xs p-4 rounded-lg shadow-md ${
-                    msg.senderId === userId
-                      ? "bg-blue-200 text-gray-800 rounded-r-lg"
-                      : "bg-green-200 text-gray-800 rounded-l-lg"
+                  key={index}
+                  className={`flex ${
+                    msg.senderId === userId ? "justify-end" : "justify-start"
                   }`}
                 >
-                  <p>{msg.message}</p>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  <div
+                    className={`max-w-xl px-4 py-2 rounded-lg shadow-sm ${
+                      msg.senderId === userId
+                        ? "bg-indigo-600 text-white"
+                        : "bg-white text-gray-800"
+                    }`}
+                  >
+                    <p className="text-sm">{msg.message}</p>
+                    <div className="flex items-center mt-1 space-x-1">
+                      <Clock className="w-3 h-3 text-gray-300" />
+                      <span className="text-xs text-gray-300">
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-            
-
-
-          )
-          
-          
-          }
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
 
-        {/* Message Input Area */}
-        <div className="flex items-center mt-auto border-t border-gray-200 pt-4">
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            placeholder="Type a message..."
-          />
-          <button
-            onClick={handleSendMessage}
-            className="ml-4 p-3 bg-green-500 text-white rounded-full hover:bg-green-600 focus:outline-none transition-colors duration-200"
-          >
-            <i className="fas fa-paper-plane"></i>
-          </button>
+        {/* Message Input */}
+        <div className="p-4 bg-white border-t border-gray-200">
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+              placeholder="Type your message..."
+              className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!selectedUser || !message.trim()}
+              className="p-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

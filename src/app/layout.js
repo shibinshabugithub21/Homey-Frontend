@@ -1,4 +1,3 @@
-// app/RootLayout.js (or wherever your RootLayout is defined)
 "use client"; // Mark this component as a client component
 import React,{ useEffect } from 'react';
 import '../app/global.css';

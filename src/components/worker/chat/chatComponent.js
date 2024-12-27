@@ -5,13 +5,13 @@ import io from "socket.io-client";
 
 const ChatApp = () => {
   const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState(""); 
-  const [users, setUsers] = useState([]); 
-  const [selectedUser, setSelectedUser] = useState(null); 
-  const [socket, setSocket] = useState(null); 
-  const [workerId, setWorkerId] = useState(null); 
-  const [loadingUsers, setLoadingUsers] = useState(false); 
-  const [loadingMessages, setLoadingMessages] = useState(false); 
+  const [message, setMessage] = useState("");
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [socket, setSocket] = useState(null);
+  const [workerId, setWorkerId] = useState(null);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   useEffect(() => {
     const storedWorkerId = localStorage.getItem("workerId");
@@ -22,15 +22,15 @@ const ChatApp = () => {
       return;
     }
 
+    // Connect to the Socket.IO server
     const socketConnection = io(`${process.env.NEXT_PUBLIC_Backend_Port}`);
     setSocket(socketConnection);
 
+    // Fetch chat users
     const fetchUsersForWorker = async () => {
       setLoadingUsers(true);
       try {
         const response = await axios.get(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/getChatUsers/${workerId}`);
-        console.log('response.data.users',response.data.users);
-        
         setUsers(response.data.users); // Update users list
       } catch (error) {
         console.error("Error fetching users for worker:", error);
@@ -46,18 +46,27 @@ const ChatApp = () => {
     };
   }, [workerId]);
 
-  // Fetch messages when a user is selected
+  // Join chat room when a user is selected
+  const handleSelectUser = (user) => {
+    setSelectedUser(user);
+
+    if (socket && user.chatId) {
+      socket.emit("joinChat", user.chatId); // Join the chat room
+    }
+
+    fetchMessages(user.userId);
+  };
+
+  // Fetch messages for the selected chat
   const fetchMessages = async (userId) => {
     setLoadingMessages(true);
     try {
       const response = await axios.get(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/getMessages/${workerId}/${userId}`);
       const { messages, chatId } = response.data;
-console.log('messages',messages);
-
       setMessages(messages); // Update messages state
       setSelectedUser((prev) => ({
         ...prev,
-        chatId, // Set chatId from response
+        chatId, // Save chatId for further communication
       }));
     } catch (error) {
       console.error("Error fetching messages:", error);
@@ -66,53 +75,29 @@ console.log('messages',messages);
     }
   };
 
-  // Handle user selection for chat
-  const handleSelectUser = (user) => {
-    setSelectedUser(user);
-    fetchMessages(user.userId);
-  };
+  // Send a message
+  const handleSendMessage = () => {
+    if (!message.trim() || !selectedUser?.chatId) return;
 
-  // Handle sending a message
-  const handleSendMessage = async () => {
-    if (!message.trim()) {
-      console.warn("Message is empty, cannot send.");
-      return;
-    }
-
-    if (!selectedUser || !selectedUser.chatId) {
-      console.warn("No user selected or chatId missing.");
-      return;
-    }
-
-    const payload = {
+    const messageData = {
       senderId: workerId,
-      chatId: selectedUser.chatId, // Use the chatId from selectedUser
+      receiverId: selectedUser.userId,
       message,
+      timestamp: Date.now(),
     };
 
-    try {
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_Backend_Port}/worker/createMessage`, payload);
-      if (response.data.success) {
-        console.log('workerId',workerId);
-        
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          {
-            senderId: workerId,
-            receiverId: selectedUser.userId,
-            message,
-            timestamp: Date.now(),
-          },
-        ]);
-        setMessage("");
-      }
-      // fetchMessages()
-    } catch (error) {
-      console.error("Error sending message:", error?.response?.data || error?.message);
-    }
+    // Send the message via Socket.IO
+    socket.emit("sendMessage", {
+      chatId: selectedUser.chatId,
+      messageData,
+    });
+
+    // Optimistically update the chat UI
+    setMessages((prevMessages) => [...prevMessages, messageData]);
+    setMessage("");
   };
 
-  // Set up socket listener for incoming messages
+  // Listen for incoming messages
   useEffect(() => {
     if (socket) {
       socket.on("receiveMessage", (newMessage) => {
@@ -153,13 +138,11 @@ console.log('messages',messages);
           {selectedUser ? selectedUser.name : "Select a User"}
         </div>
 
-        {/* Messages Area */}
+        {/* Messages */}
         <div className="flex-grow overflow-y-auto space-y-4 mb-4">
           {loadingMessages ? (
             <p className="text-gray-400">Loading messages...</p>
           ) : (
-
-
             messages.map((msg, index) => (
               <div
                 key={index}
@@ -173,23 +156,16 @@ console.log('messages',messages);
                   }`}
                 >
                   <p>{msg.message}</p>
-           
                   <div className="text-xs text-gray-500 mt-1">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </div>
                 </div>
               </div>
             ))
-            
-
-
-          )
-          
-          
-          }
+          )}
         </div>
 
-        {/* Message Input Area */}
+        {/* Message Input */}
         <div className="flex items-center mt-auto border-t border-gray-200 pt-4">
           <input
             type="text"
@@ -202,7 +178,7 @@ console.log('messages',messages);
             onClick={handleSendMessage}
             className="ml-4 p-3 bg-green-500 text-white rounded-full hover:bg-green-600 focus:outline-none transition-colors duration-200"
           >
-            <i className="fas fa-paper-plane"></i>
+            Send
           </button>
         </div>
       </div>

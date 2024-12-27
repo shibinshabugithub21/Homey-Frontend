@@ -1,7 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Footer from '@/components/footer';
 
 const PersonalDetails = ({ onNext }) => {
   const router = useRouter();
@@ -12,10 +11,8 @@ const PersonalDetails = ({ onNext }) => {
   const [address, setAddress] = useState("");
   const [dob, setDob] = useState("");
   const [bloodGroup, setBloodGroup] = useState("");
-  // const [profile, setProfile] = useState("");
-  // const [idProof, setIdProof] = useState("");
   const [errors, setErrors] = useState({});
-
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
 
   const fetchWorkerDetails = async () => {
     if (typeof window !== "undefined") {
@@ -34,7 +31,7 @@ const PersonalDetails = ({ onNext }) => {
           {
             headers: {
               "Content-Type": "application/json",
-              Authorization: ` Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
             },
           }
         );
@@ -43,7 +40,6 @@ const PersonalDetails = ({ onNext }) => {
         console.log("Worker details:", response.data);
 
         const data = response.data[0];
-        console.log(data.fullName + data.phone + data.email);
         setFullName(data.fullname);
         setPhone(data.phone);
         setEmail(data.email);
@@ -55,9 +51,32 @@ const PersonalDetails = ({ onNext }) => {
     }
   };
 
-  useEffect(() => {
-    fetchWorkerDetails();
-  }, []);
+  const fetchLocationFromIP = async () => {
+    setIsFetchingLocation(true);
+    try {
+      // First get the IP address
+      const ipResponse = await axios.get('https://api.ipify.org?format=json');
+      const ip = ipResponse.data.ip;
+      
+      // Then get the location data using the IP
+      const locationResponse = await axios.get(`https://ipapi.co/${ip}/json/`);
+      const locationData = locationResponse.data;
+      
+      // Set the location using city and country
+      setLocation(`${locationData.city}, ${locationData.country_name}`);
+      
+      // Optionally, you can also update the address with more detailed information
+      const fullAddress = `${locationData.city}, ${locationData.region}, ${locationData.country_name}, ${locationData.postal}`;
+      setAddress(fullAddress);
+    } catch (error) {
+      console.error("Error fetching location:", error);
+      setLocation("Unable to fetch location");
+    } finally {
+      setIsFetchingLocation(false);
+    }
+  };
+
+  // Rest of the component remains the same
   const validateForm = () => {
     const newErrors = {};
 
@@ -89,12 +108,15 @@ const PersonalDetails = ({ onNext }) => {
       address,
       dob,
       bloodGroup,
-   
     };
 
     localStorage.setItem("personalDetails", JSON.stringify(personalDetails));
     onNext();
   };
+
+  useEffect(() => {
+    fetchWorkerDetails();
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -116,7 +138,7 @@ const PersonalDetails = ({ onNext }) => {
           id="fullName"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
-          className={`border rounded p-2 w-full ${errors.fullName ? 'border-red-500' : ''}`}
+          className={`border rounded p-2 w-full ${errors.fullName ? "border-red-500" : ""}`}
         />
         {errors.fullName && <p className="text-red-500 text-sm">{errors.fullName}</p>}
       </div>
@@ -130,7 +152,7 @@ const PersonalDetails = ({ onNext }) => {
           id="phone"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className={`border rounded p-2 w-full ${errors.phone ? 'border-red-500' : ''}`}
+          className={`border rounded p-2 w-full ${errors.phone ? "border-red-500" : ""}`}
         />
         {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
       </div>
@@ -144,7 +166,7 @@ const PersonalDetails = ({ onNext }) => {
           id="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className={`border rounded p-2 w-full ${errors.email ? 'border-red-500' : ''}`}
+          className={`border rounded p-2 w-full ${errors.email ? "border-red-500" : ""}`}
         />
         {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
       </div>
@@ -153,13 +175,37 @@ const PersonalDetails = ({ onNext }) => {
         <label htmlFor="location" className="block mb-1">
           Location
         </label>
-        <input
-          type="text"
-          id="location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className={`border rounded p-2 w-full ${errors.location ? 'border-red-500' : ''}`}
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            id="location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className={`border rounded p-2 w-full ${errors.location ? "border-red-500" : ""}`}
+          />
+          <button
+            type="button"
+            onClick={fetchLocationFromIP}
+            className="bg-blue-500 text-white rounded px-4 py-2 whitespace-nowrap hover:bg-blue-600 transition-colors"
+            disabled={isFetchingLocation}
+          >
+            {isFetchingLocation ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                Loading...
+              </span>
+            ) : (
+              "Use Current Location"
+            )}
+          </button>
+        </div>
         {errors.location && <p className="text-red-500 text-sm">{errors.location}</p>}
       </div>
 
@@ -172,7 +218,7 @@ const PersonalDetails = ({ onNext }) => {
           id="address"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          className={`border rounded p-2 w-full ${errors.address ? 'border-red-500' : ''}`}
+          className={`border rounded p-2 w-full ${errors.address ? "border-red-500" : ""}`}
         />
         {errors.address && <p className="text-red-500 text-sm">{errors.address}</p>}
       </div>
@@ -186,7 +232,7 @@ const PersonalDetails = ({ onNext }) => {
           id="dob"
           value={dob}
           onChange={(e) => setDob(e.target.value)}
-          className={`border rounded p-2 w-full ${errors.dob ? 'border-red-500' : ''}`}
+          className={`border rounded p-2 w-full ${errors.dob ? "border-red-500" : ""}`}
         />
         {errors.dob && <p className="text-red-500 text-sm">{errors.dob}</p>}
       </div>
@@ -200,16 +246,15 @@ const PersonalDetails = ({ onNext }) => {
           id="bloodGroup"
           value={bloodGroup}
           onChange={(e) => setBloodGroup(e.target.value)}
-          className={`border rounded p-2 w-full ${errors.bloodGroup ? 'border-red-500' : ''}`}
+          className={`border rounded p-2 w-full ${errors.bloodGroup ? "border-red-500" : ""}`}
         />
         {errors.bloodGroup && <p className="text-red-500 text-sm">{errors.bloodGroup}</p>}
       </div>
 
-      <button type="submit" className="bg-blue-500 text-white rounded p-2">
+      <button type="submit" className="bg-blue-500 text-white rounded p-2 hover:bg-blue-600 transition-colors">
         Submit
       </button>
     </form>
-    
   );
 };
 
